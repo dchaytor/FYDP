@@ -4,7 +4,7 @@ import matplotlib.pyplot as mplot
 
 def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railScan=None, scanSide="left", folder='C:\\temp\\'):
     #scanData = sensorHeight - scanData # if actually scanning in data, need to do this to put w.r.t. scanner ref frame
-
+    # adding this comment to test
     # should check to make sure datatypes match expected & return error if not but eh
     if not (type(scanData) is np.ndarray):
         # there should prob be some error handling here, but should be ok since we can control data passed in
@@ -259,14 +259,14 @@ if __name__ == "__main__" or __name__ == "InterpretData.Py":
     
 
 
-    '''
+    
     ret = interpretData(scanData, dx, dy, sensorHeight, seq=0)
 
     print(f"Max Depth: {ret[0]}")
     print(f"Defect Length: {ret[1]}")
     print(f"Defect Width: {ret[2]}")
     print(f"Defect Volume: {ret[3]}")
-    '''
+    
     
 
 
