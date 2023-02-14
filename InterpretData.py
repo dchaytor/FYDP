@@ -1,22 +1,29 @@
+# local repo at C:\Users\dunca\OneDrive\Documents\4B\FYDP\FYDP
 # general assumptions moved to bottom of module
 import numpy as np
 import matplotlib.pyplot as mplot
 
 def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railScan=None, scanSide="left", folder='C:\\temp\\'):
     #scanData = sensorHeight - scanData # if actually scanning in data, need to do this to put w.r.t. scanner ref frame
-    # adding this comment to test
+    
     # should check to make sure datatypes match expected & return error if not but eh
     if not (type(scanData) is np.ndarray):
         # there should prob be some error handling here, but should be ok since we can control data passed in
         scanData = np.array(scanData)
+        
+    #scanData = scanData.astype(float) # prob don't need this
     
     # being lazy and just casting numeric variables - if run into trouble later, do something better
     dx = float(dx)
     dy = float(dy)
     sensorHeight = float(sensorHeight)
-    epsilon = 0.001    # acceptable error w/ comparing scanned profile to rail profile
+    epsilon = 0.0001    # acceptable error w/ comparing scanned profile to rail profile
 
     numy, numx = scanData.shape     # shape is gonna be as (cols, rows), so (y, x)
+    
+    # testing plotting in various locations
+    #X, Y = np.meshgrid(np.arange(0, numx) * dx, np.arange(0, numy) * dy)
+    #plot3D(X, Y, scanData, numx, numy) # OK here
 
     # get defect-free rail profile w.r.t. sensor coordinate system
     # storing as 1D column vector for now (i.e., y coordinates only) - may change later
@@ -28,15 +35,28 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
             railProfile = railScan  
     else:
         railProfile = getSliceProfile(railType, numy, dy, sensorHeight)
+       
     
     # take scanData array, subtract off rail profile from each col, store into new matrix
-    defectProfile = scanData - railProfile  # assumes non-curved rail profile; would need mtx transform otherwise
+    # represents defects as positive values for now
+    defectProfile = railProfile - scanData # assumes non-curved rail profile; would need mtx transform otherwise
+    
+    #print(np.around(scanData, 2))
+    #print(np.around(railProfile, 2))
+    #print(np.around(defectProfile, 2))
+    
     
     # set any values less than some small number to zero
     defectProfile[defectProfile <= epsilon] = 0
     defectIdx = np.nonzero(defectProfile)   # indices where defect is
+    
+    '''
+    should really check to see if defectIdx is storing empty arrays first
+    can run into issues with next line if defectIdx stores ([], []); should
+    have a param that says there's no defect, and removes 
+    '''
     dfBounds = ((defectIdx[0].min(), defectIdx[0].max() + 1), 
-        defectIdx[1].min(), defectIdx[1].max() + 1)   # prob a better way but eh
+        (defectIdx[1].min(), defectIdx[1].max() + 1))   # prob a better way but eh
     
     maxDepth, defectLength, defectWidth, defectVolume = 0, 0, 0, 0
     if seq == 0:
@@ -57,9 +77,17 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
     workingProfile = np.array([])
     repairSuccess = False
     dfpType = wpType = ""
-
+    
+    # creating grid based on number of indices in x and y and distance per step
+    X, Y = np.meshgrid(np.arange(0, numx) * dx, np.arange(0, numy) * dy)
+    
+    
+    '''
+    should check to see if defectIdx/dfBounds is empty before sending to
+    functions since otherwise will end up with issues
+    '''
     if seq == 0:
-        workingProfile = getRemovalProfile(scanData, defectProfile, dfBounds)
+        workingProfile, rmX, rmY = getRemovalProfile(scanData, defectProfile, dfBounds, X, Y)
         generateToolpaths(scanData, workingProfile)    # would send this to machining module
         dfpType = "defect-initial"
         wpType = "machining-profile"
@@ -77,43 +105,25 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
         repairSuccess = profileMatch(defectProfile)
         dfpType = "finished-profile"
 
-    # creating grid based on number of indices in x and y and distance per step
-    X, Y = np.meshgrid(np.arange(0, numx) * dx, np.arange(0, numy) * dy)
-    
-    # plot and save out defectProfile, workingProfile (unless seq == 3)
-    #dfPlot = mplot.figure()
-    #dfAx = dfPlot.add_subplot(projection='3d')
-    #dfAx.plot_wireframe(X, Y, defectProfile, rcount=numx, ccount=numy)
-    #dfPlot.savefig(folder + dfpType)
-    #mplot.close(dfPlot)
-    #plotFP = [folder + dfpType]
 
     # DON'T want to be just plotting defectProfile since it's normalized to rail profile
     # should be plotting rail profile, coloured based on depths of defectprofile
-    plotFP = [plot3D(X, Y, scanData, numx, numy, folder + dfpType)]
-
+    plotFP = [plot3D(X, Y, scanData, numx, numy, folder + dfpType)] 
+    
 
     if workingProfile.size != 0: # unga bunga moment
-        #wPlot = mplot.figure()
-        #wAx = wPlot.add_subplot(projection='3d')
-        #wAx.plot_wireframe(X, Y, workingProfile, rcount=numx, ccount=numy)
-        #wPlot.savefig(folder + wpType)
-        #mplot.close(wPlot)
-        #plotFP.append(folder + wpType)
-        print(workingProfile.shape) # giving (0,) - need to figure out why
-
-        plotFP.append([plot3D(X, Y, workingProfile, numx, numy, folder + wpType)])
+        plotFP.append([plot3D(rmX, rmY, workingProfile, numx, numy, folder + wpType)])
 
 
     return maxDepth, defectLength, defectWidth, defectVolume, plotFP, repairSuccess # might not need all these returns
 
 
-def getRemovalProfile(rProfile, dfProfile, dfBounds):
+def getRemovalProfile(rProfile, dfProfile, dfBounds, X, Y):
     (rm, rM), (cm, cM) = dfBounds
-
+    rmX, rmY = X[rm:rM, cm:cM], Y[rm:rM, cm:cM]
     # figuring extra 12% removal should be enough
     rmprofile = rProfile[rm:rM, cm:cM] - abs(dfProfile[rm:rM, cm:cM] * 1.12)
-    return rmprofile
+    return rmprofile, rmX, rmY
 
 
 def getDepositionProfile(rProfile, dfProfile, dfBounds):
@@ -187,14 +197,42 @@ def getSliceProfile(railType, numy, dy, hSens):
         # stretched inverted parabola, shifted over to match up center of data points, shifted up s.t. z(center)=0
         railProfile = -(1/64)*((railProfile - (numy-1)*dy/2.0) ** 2) # + (numy*dy/2.0)**2 -> want 0 at center
     
-    return np.array((railProfile - hSens)[:, None]) # assuming sensorHeight defined as dist from sensor to rail center
+    return np.array((railProfile - hSens)[:, None]).astype(float) # assuming sensorHeight defined as dist from sensor to rail center
 
-def plot3D(X, Y, Z, rcount, ccount, fp=None):
+def plot3D(X, Y, Z, rcount, ccount, fp=""):
     # code to generate generic 3d wireframe plot (maybe add another parameter & generalize for other 3D plots)
     plt = mplot.figure()
     ax = plt.add_subplot(projection='3d')
     ax.plot_wireframe(X, Y, Z, rcount=rcount, ccount=ccount)    # might use something other than wireframe, idk
     ax.set_box_aspect((np.ptp(X), np.ptp(Y), np.ptp(Z)))    # normalizing axes
+    
+    '''
+    seems to be some issue with Z data... plotting results:
+        (X, Y, Z): error
+        (X, X, X): fine
+        (Y, Y, Y): fine
+        (Z, Z, Z): fine
+        (X, Y, Y), (X, X, Y), etc: fine
+        (X, X, Z), (Y, Y, Z), etc: error
+    '''
+    
+    
+    
+    print(X.shape, Y.shape, Z.shape)
+    #print(X.shape == Y.shape) # returns true
+    #print(X.shape == Z.shape) # returns true
+    
+    '''# doesn't solve issue
+    X = X.astype(float)
+    Y = Y.astype(float)
+    Z = Z.astype(float)
+    '''
+    
+    
+    #print(np.around(X, 2))
+    #print(np.around(Y, 2))
+    #print(np.around(Z, 2))
+    print(type(X), type(Y), type(Z))
     
     '''
     ideas for plot (if possible):
@@ -204,9 +242,11 @@ def plot3D(X, Y, Z, rcount, ccount, fp=None):
     - make sure to save out interactive plot if possible (so can resize/pan etc)
     DO THIS STUFF AFTER REST OF INTERPRETDATA, SYSTEMREPORTS ARE VERIFIED
     -> prob just leave these for now, and do them after MDR
+    
+    - should probably be checking for shape mismatch in X/Y/Z data too
     '''
 
-    if not fp == None and False:
+    if not fp == "" and False:
         # get rid of "and False" when actually testing system
         plt.savefig(fp)
         mplot.close(plt)
@@ -215,13 +255,14 @@ def plot3D(X, Y, Z, rcount, ccount, fp=None):
 
     return fp
 
+
 if __name__ == "__main__" or __name__ == "InterpretData.Py":
     # at some point split up __name__ == so have options for testing from module/actually running
 
     # reminder for sanity: shape is given as (y, x) since (rows, cols)
     dx = .5
     dy = .5
-    numx, numy = 100, 20
+    numx, numy = 50, 20
     sensorHeight = 0.5
     sliceData = getSliceProfile(None, numy, dy, sensorHeight)
     
@@ -236,7 +277,7 @@ if __name__ == "__main__" or __name__ == "InterpretData.Py":
     mplot.show()
     '''
     X, Y = np.meshgrid(np.arange(0, numx) * dx, np.arange(0, numy) * dy)
-    scanData = (np.multiply(np.ones((numy, numx)), sliceData))
+    perfectRail = (np.multiply(np.ones((numy, numx)), sliceData))
     
     #print(scanData - sliceData) # this works as expected
     
@@ -245,21 +286,64 @@ if __name__ == "__main__" or __name__ == "InterpretData.Py":
 
     #plot3D(X, Y, scanData, numy, numx) 
 
-    
+    '''
     test = np.array(((0, 0, 0, 0), (0, 2, 0, 0), (0,3,0,0), (0, 0, 0, 0)))
     print(test)
     testIdx = np.nonzero(test)
     testBounds = ((testIdx[0].min(), testIdx[0].max() + 1), (testIdx[1].min(), testIdx[1].max() + 1))
     (a, b), (c, d) = testBounds
-    
     #print(test[testBounds[0], testBounds[1]])
     #print(test[(1,2) * (1, 2)])
     #print(test[testBounds[0][0]:testBounds[0][1], testBounds[1][0]:testBounds[1][1]])
     #print(test[a:b, c:d])
+    '''
     
+    # vscode being kinda funky... might have to switch IDEs for now
+    # might have to uninstall/reinstall vscode tbh
 
-
+    # adding functionally generated defect to scanData
+    yc, xc = [int(n/2) for n in perfectRail.shape] # generating about center of defect
+    defX = np.zeros((numy, numx))
+    defY = np.zeros((numy, numx))
     
+    ny_defect, nx_defect = int(numy/2), int(numx/5) # setting defect size - arbitrary
+    a, b, c = nx_defect / 2.0 * dx, ny_defect / 2.0 * dy, .5   # setting ellipsoid params
+    
+    # setting 'coord' system around defect
+    x_maxInd = int(xc + nx_defect/2)
+    x_minInd = int(xc - nx_defect/2) 
+    y_maxInd = int(yc + ny_defect/2)
+    y_minInd = int(yc - ny_defect/2)
+    # nx_defect, ny_defect are actually n-1, so if nx_defect = 8, have 9
+    # work out better math later, too lazy rn
+    
+    defX[y_minInd:y_maxInd+1, x_minInd:x_maxInd+1], \
+        defY[y_minInd:y_maxInd+1, x_minInd:x_maxInd+1] = \
+        np.meshgrid(np.arange(-nx_defect/2, nx_defect/2 + 1) * dx, \
+                    np.arange(-ny_defect/2, ny_defect/2 + 1) * dy)  # this works
+    
+    # generate half-ellipsoid defect about center of rail
+    tempZ = (1 - (defX/a)**2 - (defY/b)**2)
+    #print(np.around(tempZ, 2))
+    tempZ[tempZ == 1] = 0
+    tempZ[tempZ < 0] = 0
+    #print(np.around(tempZ, 2))
+        
+    defZ = c**2 * np.sqrt(tempZ)    # gets positive points of an ellipsoid
+    #print(np.around(defZ, 2))
+    #print(defZ.shape)
+    
+    scanData = perfectRail - defZ # seems to be working as expected
+    
+    #plot3D(X, Y, scanData, rcount = numy, ccount = numx)
+        
+    '''
+    not sure if it's better to just subtract off the ellipsoid profile off of
+    the 'perfect' profile or to just set the indices to the ellipsoid profile
+    -> neither are great, but i'm not sure the best way to do this
+    '''
+    
+    # testing module:
     ret = interpretData(scanData, dx, dy, sensorHeight, seq=0)
 
     print(f"Max Depth: {ret[0]}")
