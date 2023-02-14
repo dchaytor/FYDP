@@ -1,4 +1,4 @@
-# local repo at C:\Users\dunca\OneDrive\Documents\4B\FYDP\FYDP
+# local repo at C:/Users/dunca/OneDrive/Documents/4B/FYDP/FYDP
 # general assumptions moved to bottom of module
 import numpy as np
 import matplotlib.pyplot as mplot
@@ -47,7 +47,7 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
     
     
     # set any values less than some small number to zero
-    defectProfile[defectProfile <= epsilon] = 0
+    defectProfile[abs(defectProfile) <= epsilon] = 0
     defectIdx = np.nonzero(defectProfile)   # indices where defect is
     
     '''
@@ -206,33 +206,6 @@ def plot3D(X, Y, Z, rcount, ccount, fp=""):
     ax.plot_wireframe(X, Y, Z, rcount=rcount, ccount=ccount)    # might use something other than wireframe, idk
     ax.set_box_aspect((np.ptp(X), np.ptp(Y), np.ptp(Z)))    # normalizing axes
     
-    '''
-    seems to be some issue with Z data... plotting results:
-        (X, Y, Z): error
-        (X, X, X): fine
-        (Y, Y, Y): fine
-        (Z, Z, Z): fine
-        (X, Y, Y), (X, X, Y), etc: fine
-        (X, X, Z), (Y, Y, Z), etc: error
-    '''
-    
-    
-    
-    print(X.shape, Y.shape, Z.shape)
-    #print(X.shape == Y.shape) # returns true
-    #print(X.shape == Z.shape) # returns true
-    
-    '''# doesn't solve issue
-    X = X.astype(float)
-    Y = Y.astype(float)
-    Z = Z.astype(float)
-    '''
-    
-    
-    #print(np.around(X, 2))
-    #print(np.around(Y, 2))
-    #print(np.around(Z, 2))
-    print(type(X), type(Y), type(Z))
     
     '''
     ideas for plot (if possible):
@@ -240,10 +213,9 @@ def plot3D(X, Y, Z, rcount, ccount, fp=""):
     - colour based on defect profile (i.e., further deviation from standard profile gives colour gradient)
         -> look into different mplot functions, surf commands, idk
     - make sure to save out interactive plot if possible (so can resize/pan etc)
-    DO THIS STUFF AFTER REST OF INTERPRETDATA, SYSTEMREPORTS ARE VERIFIED
     -> prob just leave these for now, and do them after MDR
     
-    - should probably be checking for shape mismatch in X/Y/Z data too
+    - open to ideas RE: meaningful visualization
     '''
 
     if not fp == "" and False:
@@ -306,8 +278,8 @@ if __name__ == "__main__" or __name__ == "InterpretData.Py":
     defX = np.zeros((numy, numx))
     defY = np.zeros((numy, numx))
     
-    ny_defect, nx_defect = int(numy/2), int(numx/5) # setting defect size - arbitrary
-    a, b, c = nx_defect / 2.0 * dx, ny_defect / 2.0 * dy, .5   # setting ellipsoid params
+    ny_defect, nx_defect = int(numy/2), int(numx/3) # setting defect size - arbitrary
+    a, b, c = nx_defect / 2.0 * dx, ny_defect / 2.0 * dy, .7   # setting ellipsoid params
     
     # setting 'coord' system around defect
     x_maxInd = int(xc + nx_defect/2)
@@ -325,6 +297,7 @@ if __name__ == "__main__" or __name__ == "InterpretData.Py":
     # generate half-ellipsoid defect about center of rail
     tempZ = (1 - (defX/a)**2 - (defY/b)**2)
     #print(np.around(tempZ, 2))
+    if tempZ[yc, xc] == 1: tempZ[yc, xc] = 0.999    # otherwise end up w/ 0 at df center
     tempZ[tempZ == 1] = 0
     tempZ[tempZ < 0] = 0
     #print(np.around(tempZ, 2))
@@ -352,11 +325,6 @@ if __name__ == "__main__" or __name__ == "InterpretData.Py":
     print(f"Defect Volume: {ret[3]}")
     
     
-
-
-
-
-
 
 # A LOT OF THESE ASSUMPTIONS MAY BE OUT OF DATE - REVIEW AT SOME POINT
 # function assumes all data coming in as matrix of 'z' (depth) coordinates
