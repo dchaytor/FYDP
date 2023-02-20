@@ -2,6 +2,7 @@ import pygame                   # for controller
 import RPi.GPIO as GPIO         # for raspberry pi
 from gpiozero import Servo      # for servo control
 from gpiozero import Motor      # for DC motor control
+from gpiozero import Button     # for buttons
 import time
 
 
@@ -25,30 +26,35 @@ maxServoAngle = 1               # Set servo to max angle: ((max/270)*2 - 1)
 minServoAngle = -1              # Set servo to min angle: ((min/270)*2 - 1)
 
 # Set pins
-driveForwardPin = 1         # GPIO pin set to drive bogie forward - change pin# when decided
-driveBackwardPin = 2        # GPIO pin set to drive bogie backward - change pin# when decided
-scanForwardPin = 3          # GPIO pin set to move scanner forward - change pin# when decided
-scanBackwardPin = 4         # GPIO pin set to move scanner backward - change pin# when decided
-scanForwardStopPin = 5      # GPIO pin set to stop scanner once scan ends and return - change pin# when decided
-scanBackwardStopPin = 6     # GPIO pin set to stop scanner once returned - change pin# when decided
-brakeServoPin = Servo(7)    # GPIO pin set for brakes - change pin# when decided
-driveMotor = Motor(forward = driveForwardPin, backward = driveBackwardPin)
-scanMotor = Motor(forward = scanForwardPin, backward = scanBackwardPin)
+driveForwardPin = 23        # GPIO pin set to drive bogie forward
+driveBackwardPin = 24       # GPIO pin set to drive bogie backward
+driveEnablePin = 18         # GPIO pin set to enable motor controller
+scanForwardPin = 17         # GPIO pin set to move scanner forward
+scanBackwardPin = 4         # GPIO pin set to move scanner backward
+scanEnablePin = 27          # GPIO pin set to enable motor controller
+scanForwardStopPin = 19     # GPIO pin set to stop scanner once scan ends and return
+scanBackwardStopPin = 26    # GPIO pin set to stop scanner once returned
+brakeServoPin = 16          # GPIO pin set for brakes
 
 
 def initializeControl():
+    global driveMotor, scanMotor, servoMotor, frontButton, rearButton
+
     # Initialize
     pygame.init()       # initialize pygame
     joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
     print(joysticks)
 
     # Raspberry Pi setup
-    GPIO.setmode(GPIO.BOARD) # setup GPIO call mode for raspberry pi
     GPIO.cleanup() # clear GPIOs
+    GPIO.setmode(GPIO.BCM) # setup GPIO call mode for raspberry pi
 
-    # Set pin type
-    GPIO.setup(scanForwardStopPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)         # Set pin as input defaulted to low
-    GPIO.setup(scanBackwardStopPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)        # Set pin as input defaulted to low
+    driveMotor = Motor(forward = driveForwardPin, backward = driveBackwardPin, enable = driveEnablePin)
+    scanMotor = Motor(forward = scanForwardPin, backward = scanBackwardPin, enable = scanEnablePin)
+    servoMotor = Servo(brakeServoPin)
+    frontButton = Button(scanForwardStopPin)
+    rearButton = Button(scanBackwardStopPin)
+    # Still have to set up encoder
 
 def forwardDrive(driveSpeed):
     driveMotor.forward(driveSpeed)
@@ -73,32 +79,36 @@ def deactivateBrakes():
 
 def moveScannerBack():
     # Start moving scanner backward
-    scanMotor.backward()
-    # Stop motor and stop scanner movement once scanner hits button
     scan = True
+    scanMotor.backward()
+
+    # Stop motor and stop scanner movement once scanner hits button
     while scan:
-        if GPIO.input(scanBackwardStopPin) == GPIO.HIGH:
-            scanMotor.stop()
-            scan = False
-        return scan
+        rearButton.wait_for_press()
+        scanMotor.stop()
+        scan = False
+        
+    return scan
 
 def moveScannerForward():
     # Start moving scanner forward
-    scanMotor.forward()
-    # Stop motor and end scan once scanner hits button
     scan = True
+    scanMotor.forward()
+
+    # Stop motor and end scan once scanner hits button
     while scan:
-        if GPIO.input(scanForwardStopPin) == GPIO.HIGH:
-            scanMotor.stop()
-            scan = False
-        return scan
+        frontButton.wait_for_press()
+        scanMotor.stop()
+        scan = False
+    
+    return scan
 
 def scanSequence():
     # Start scan loop
     scanning = True
     # Block driving
     pygame.event.set_blocked(pygame.JOYAXISMOTION)
-    print("Start Scan")
+    print("Starting Scan")
     while scanning:
         # Start scanning
         scanning = moveScannerForward()
@@ -116,7 +126,7 @@ def scanSequence():
     time.sleep(2)
     
     # Start return loop
-    print("Return to Starting Position")
+    print("Returning to Start Position")
     returning = True
 
     while returning:
