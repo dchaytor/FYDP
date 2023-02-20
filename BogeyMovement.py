@@ -1,13 +1,9 @@
-import pygame # for controller
-import RPi.GPIO as GPIO # for raspberry pi
-from gpiozero import Servo # for servo control
-from gpiozero import Motor # for DC motor control
+import pygame                   # for controller
+import RPi.GPIO as GPIO         # for raspberry pi
+from gpiozero import Servo      # for servo control
+from gpiozero import Motor      # for DC motor control
 import time
 
-# Initialize
-pygame.init()       # initialize pygame
-joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
-print(joysticks)
 
 # Controller Buttons - DS4 setup
 bogieDrive = 1                  # Bogie drive forward/backward - Left Stick
@@ -28,10 +24,6 @@ motorSpeed = 0.5
 maxServoAngle = 1               # Set servo to max angle: ((max/270)*2 - 1)
 minServoAngle = -1              # Set servo to min angle: ((min/270)*2 - 1)
 
-# Raspberry Pi setup
-GPIO.setmode(GPIO.BOARD) # setup GPIO call mode for raspberry pi
-GPIO.cleanup() # clear GPIOs
-
 # Set pins
 driveForwardPin = 1         # GPIO pin set to drive bogie forward - change pin# when decided
 driveBackwardPin = 2        # GPIO pin set to drive bogie backward - change pin# when decided
@@ -43,10 +35,20 @@ brakeServoPin = Servo(7)    # GPIO pin set for brakes - change pin# when decided
 driveMotor = Motor(forward = driveForwardPin, backward = driveBackwardPin)
 scanMotor = Motor(forward = scanForwardPin, backward = scanBackwardPin)
 
-# Set pin type
-GPIO.setup(scanForwardStopPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)         # Set pin as input defaulted to low
-GPIO.setup(scanBackwardStopPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)        # Set pin as input defaulted to low
 
+def initializeControl():
+    # Initialize
+    pygame.init()       # initialize pygame
+    joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
+    print(joysticks)
+
+    # Raspberry Pi setup
+    GPIO.setmode(GPIO.BOARD) # setup GPIO call mode for raspberry pi
+    GPIO.cleanup() # clear GPIOs
+
+    # Set pin type
+    GPIO.setup(scanForwardStopPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)         # Set pin as input defaulted to low
+    GPIO.setup(scanBackwardStopPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)        # Set pin as input defaulted to low
 
 def forwardDrive(driveSpeed):
     driveMotor.forward(driveSpeed)
@@ -73,19 +75,23 @@ def moveScannerBack():
     # Start moving scanner backward
     scanMotor.backward()
     # Stop motor and stop scanner movement once scanner hits button
-    if GPIO.input(scanBackwardStopPin) == GPIO.HIGH:
-        scanMotor.stop()
-        return False
-    return True
+    scan = True
+    while scan:
+        if GPIO.input(scanBackwardStopPin) == GPIO.HIGH:
+            scanMotor.stop()
+            scan = False
+        return scan
 
 def moveScannerForward():
     # Start moving scanner forward
     scanMotor.forward()
     # Stop motor and end scan once scanner hits button
-    if GPIO.input(scanForwardStopPin) == GPIO.HIGH:
-        scanMotor.stop()
-        return False
-    return True
+    scan = True
+    while scan:
+        if GPIO.input(scanForwardStopPin) == GPIO.HIGH:
+            scanMotor.stop()
+            scan = False
+        return scan
 
 def scanSequence():
     # Start scan loop
@@ -116,6 +122,7 @@ def scanSequence():
     while returning:
         # Return scanner to start position
         returning = moveScannerBack()
+
     # End return loop
     print("Returned to Start")
     
@@ -124,35 +131,9 @@ def scanSequence():
 
     return scanData
 
-operating = True
-activateBrakes()
-
-while operating:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            operating = False
-        if event.type == pygame.JOYBUTTONDOWN:
-            if pygame.joystick.Joystick(0).get_button(setBrake):
-                activateBrakes()
-            elif pygame.joystick.Joystick(0).get_button(resetBrake):
-                deactivateBrakes()
-            elif pygame.joystick.Joystick(0).get_button(scanForward):
-                scanSequence()
-            elif pygame.joystick.Joystick(0).get_button(eStopTwoButtonOne) and pygame.joystick.Joystick(0).get_button(eStopTwoButtonTwo):
-                operating = False
-        if event.type == pygame.JOYAXISMOTION:
-            if pygame.joystick.Joystick(0).get_axis(bogieDrive) > leftStickBackwardMin:
-                backwardDrive(motorSpeed)
-                pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
-            elif pygame.joystick.Joystick(0).get_axis(bogieDrive) < leftStickForwardMin:
-                forwardDrive(motorSpeed)
-                pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
-            elif pygame.joystick.Joystick(0).get_axis(bogieDrive) < leftStickBackwardMin and pygame.joystick.Joystick(0).get_axis(bogieDrive) > leftStickForwardMin:
-                stopDrive()
-            elif pygame.joystick.Joystick(0).get_axis(eStopOneButtonOne) > leftTriggerMin and pygame.joystick.Joystick(0).get_axis(eStopOneButtonTwo) > rightTriggerMin:
-                operating = False
-
-pygame.quit()
+def shutDown():
+    pygame.quit()
+    GPIO.cleanup()
 
 
 
