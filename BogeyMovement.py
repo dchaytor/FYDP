@@ -49,8 +49,8 @@ def initializeControl():
     GPIO.cleanup() # clear GPIOs
     GPIO.setmode(GPIO.BCM) # setup GPIO call mode for raspberry pi
 
-    driveMotor = Motor(forward = driveForwardPin, backward = driveBackwardPin, enable = driveEnablePin)
-    scanMotor = Motor(forward = scanForwardPin, backward = scanBackwardPin, enable = scanEnablePin)
+    driveMotor = Motor(driveForwardPin, driveBackwardPin, driveEnablePin)
+    scanMotor = Motor(scanForwardPin, scanBackwardPin, scanEnablePin)
     servoMotor = Servo(brakeServoPin)
     frontButton = Button(scanForwardStopPin)
     rearButton = Button(scanBackwardStopPin)
@@ -68,13 +68,13 @@ def stopDrive():
     driveMotor.stop()
 
 def activateBrakes():
-    if brakeServoPin.value != maxServoAngle:    
-        brakeServoPin.value = maxServoAngle     
+    if servoMotor.value != maxServoAngle:    
+        servoMotor.value = maxServoAngle     
         print("Activating Brake")
 
 def deactivateBrakes():
-    if brakeServoPin.value != minServoAngle:
-        brakeServoPin.value = minServoAngle
+    if servoMotor.value != minServoAngle:
+        servoMotor.value = minServoAngle
         print("Deactivating Brake")
 
 def moveScannerBack():
