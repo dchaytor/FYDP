@@ -36,9 +36,15 @@ def backwardDrive(driveSpeed):
     time.sleep(2)
 
 def activateBrakes(maxServoAngle):
-    if servoMotor.value != maxServoAngle:    
-        servoMotor.value = maxServoAngle     
-        print("Activating Brake")
+    brake = True
+    while brake:
+        servoMotor.min()
+        time.sleep(1)
+        servoMotor.mid()
+        time.sleep(1)
+        servoMotor.max()
+        time.sleep(1)
+        brake = False
 
 def deactivateBrakes(minServoAngle):
     if servoMotor.value != minServoAngle:
@@ -56,6 +62,20 @@ def moveScannerForward():
     time.sleep(2)
     scanMotor.stop()
     time.sleep(2)
+
+def testScanner():
+    moveScannerBack(0.5)
+    moveScannerForward(0.5)
+
+def testDrive():
+    forwardDrive(0.1)
+    backwardDrive(0.1)
+
+def testServo():
+    activateBrakes(1)
+    deactivateBrakes(1)
+
+    
 
 
 

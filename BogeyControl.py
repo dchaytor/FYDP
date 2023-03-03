@@ -23,7 +23,7 @@ def initialize():
         # could put this in, but pointless without imu etc to verify mvmt works
 
     # move scanners until next side reached, move back
-    BM.scanSequence()
+    # BM.scanSequence() # not using - do not call
 
     # if any tests fail, set initPass = False, gen. err report 
 
@@ -56,16 +56,20 @@ def manualCtrl(h, profile, dx, dy):
                 elif pygame.joystick.Joystick(0).get_button(BM.resetBrake):
                     BM.deactivateBrakes()
                 elif pygame.joystick.Joystick(0).get_button(BM.scanForward):
-                    BM.scanSequence()
+                    BM.forwardScan(BM.scanMotorSpeed)
+                elif pygame.joystick.Joystick(0).get_button(BM.scanBackward):
+                    BM.backwardScan(BM.scanMotorSpeed)
+                elif pygame.joystick.Joystick(0).get_button(BM.scanStop):
+                    BM.stopScan()
                 elif pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonOne) and pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonTwo):
                     shutdown = True
             if event.type == pygame.JOYAXISMOTION:
                 refTime = time.time()
                 if pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickBackwardMin:
-                    BM.backwardDrive(BM.motorSpeed)
+                    BM.backwardDrive(BM.driveMotorSpeed)
                     pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
                 elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickForwardMin:
-                    BM.forwardDrive(BM.motorSpeed)
+                    BM.forwardDrive(BM.driveMotorSpeed)
                     pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
                 elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickBackwardMin and pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickForwardMin:
                     BM.stopDrive()
