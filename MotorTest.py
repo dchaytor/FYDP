@@ -9,10 +9,10 @@ import time
 driveForwardPin = 23        # GPIO pin set to drive bogie forward
 driveBackwardPin = 24       # GPIO pin set to drive bogie backward
 driveEnablePin = 18         # GPIO pin set to enable motor controller
-scanForwardPin = 17         # GPIO pin set to move scanner forward
 scanBackwardPin = 4         # GPIO pin set to move scanner backward
+scanForwardPin = 17         # GPIO pin set to move scanner forward
 scanEnablePin = 27          # GPIO pin set to enable motor controller
-brakeServoPin = 16          # GPIO pin set for brakes
+brakeServoPin = 18          # GPIO pin set for brakes
 
  # Raspberry Pi setup
 GPIO.cleanup() # clear GPIOs
@@ -21,7 +21,6 @@ GPIO.setmode(GPIO.BCM) # setup GPIO call mode for raspberry pi
 driveMotor = Motor(driveForwardPin, driveBackwardPin, driveEnablePin)
 scanMotor = Motor(scanForwardPin, scanBackwardPin, scanEnablePin)
 servoMotor = Servo(brakeServoPin)
-
 
 def forwardDrive(driveSpeed):
     driveMotor.forward(driveSpeed)

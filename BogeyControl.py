@@ -50,7 +50,6 @@ def manualCtrl(h, profile, dx, dy):
             if event.type == pygame.QUIT:
                 shutdown = True
             if event.type == pygame.JOYBUTTONDOWN:
-                refTime = time.time()
                 if pygame.joystick.Joystick(0).get_button(BM.setBrake):
                     BM.activateBrakes()
                 elif pygame.joystick.Joystick(0).get_button(BM.resetBrake):
@@ -63,8 +62,10 @@ def manualCtrl(h, profile, dx, dy):
                     BM.stopScan()
                 elif pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonOne) and pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonTwo):
                     shutdown = True
-            if event.type == pygame.JOYAXISMOTION:
                 refTime = time.time()
+                print(refTime)
+                print(event)
+            if event.type == pygame.JOYAXISMOTION:
                 if pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickBackwardMin:
                     BM.backwardDrive(BM.driveMotorSpeed)
                     pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
@@ -75,7 +76,9 @@ def manualCtrl(h, profile, dx, dy):
                     BM.stopDrive()
                 elif pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonOne) > BM.leftTriggerMin and pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonTwo) > BM.rightTriggerMin:
                     shutdown = True
-
+                refTime = time.time()
+                print(refTime)
+                print(event)
 
         # on-event scan sequence
         # probably just return everything from InterpretData then send to reports as required

@@ -31,13 +31,13 @@ minServoAngle = -1              # Set servo to min angle: ((min/270)*2 - 1)
 # Set pins
 driveForwardPin = 23        # GPIO pin set to drive bogie forward
 driveBackwardPin = 24       # GPIO pin set to drive bogie backward
-# driveEnablePin = 18         # GPIO pin set to enable motor controller
-scanForwardPin = 17         # GPIO pin set to move scanner forward
+# driveEnablePin =          # GPIO pin set to enable motor controller
 scanBackwardPin = 4         # GPIO pin set to move scanner backward
+scanForwardPin = 17         # GPIO pin set to move scanner forward
 scanEnablePin = 27          # GPIO pin set to enable motor controller
-# forwardButtonStopPin = 19   # GPIO pin set to stop scanner once scan ends and return
-# rearButtonStopPin = 26      # GPIO pin set to stop scanner once returned
-brakeServoPin = 16          # GPIO pin set for brakes
+# forwardButtonStopPin =    # GPIO pin set to stop scanner once scan ends and return
+# rearButtonStopPin =       # GPIO pin set to stop scanner once returned
+brakeServoPin = 18          # GPIO pin set for brakes
 
 
 def initializeControl():
