@@ -44,7 +44,7 @@ def shutdownReport(nRepaired, nFailed, startTime, endTime, defectFile="Not Avail
 def errorReport(errorCodes, folder = f):
     # report to store any exceptions raised in code while running
     # expects a list of tuples with the time an error occured and an error message
-
+    # no sense adding this unless we add some error handling
     if not type(errorCodes) == list:
         pass
 

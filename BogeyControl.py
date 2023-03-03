@@ -30,8 +30,9 @@ def initialize():
 def manualCtrl(h, profile, dx, dy):
     shutdown = False
     timeOut = 3600  # times out after 3600s (1h)
-    startTime = refTime = time.time()
-    nRep = nFail = 0
+    startTime = time.asctime(time.localtime())
+    refTime = time.time()
+    nRep, nFail = 0, 0
     reportParams = []
 
     while(not shutdown):
@@ -66,7 +67,7 @@ def manualCtrl(h, profile, dx, dy):
         # make it so that all reports return the name they're saved under
 
 
-    endTime = time.time
+    endTime = time.asctime(time.localtime())
 
     # generate shutdown report
     # need to create tuple to send to defectReport

@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as mplot
 
-def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railScan=None, scanSide="left", folder='C:\\temp\\'):
+def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railScan=None, scanSide="left", folder='C:/Users/dunca/OneDrive/Documents/4B/FYDP/FYDP'):
     #scanData = sensorHeight - scanData # if actually scanning in data, need to do this to put w.r.t. scanner ref frame
     
     # should check to make sure datatypes match expected & return error if not but eh
@@ -27,19 +27,19 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
 
     # get defect-free rail profile w.r.t. sensor coordinate system
     # storing as 1D column vector for now (i.e., y coordinates only) - may change later
-    railProfile = None
+    idealRailProfile = None
     if type(railScan) is np.ndarray:
         if int(railScan.shape(0)) == numy:
             # treating data length mismatch as invalid - could maybe just interpolate values but eh
             # this is bad actually bc of noise, uncertainty in orientation, etc. but it's never getting run so w/e
-            railProfile = railScan  
+            idealRailProfile = railScan  
     else:
-        railProfile = getSliceProfile(railType, numy, dy, sensorHeight)
+        idealRailProfile = getSliceProfile(railType, numy, dy, sensorHeight)
        
     
     # take scanData array, subtract off rail profile from each col, store into new matrix
     # represents defects as positive values for now
-    defectProfile = railProfile - scanData # assumes non-curved rail profile; would need mtx transform otherwise
+    defectProfile = idealRailProfile - scanData # assumes non-curved rail profile; would need mtx transform otherwise
     
     #print(np.around(scanData, 2))
     #print(np.around(railProfile, 2))
@@ -87,7 +87,7 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
     functions since otherwise will end up with issues
     '''
     if seq == 0:
-        workingProfile, rmX, rmY = getRemovalProfile(scanData, defectProfile, dfBounds, X, Y)
+        workingProfile, defectCloseup, rmX, rmY = getRemovalProfile(scanData, defectProfile, dfBounds, X, Y)
         generateToolpaths(scanData, workingProfile)    # would send this to machining module
         dfpType = "defect-initial"
         wpType = "machining-profile"
@@ -105,6 +105,7 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
         repairSuccess = profileMatch(defectProfile)
         dfpType = "finished-profile"
 
+    numdfy, numdfx = workingProfile.shape
 
     # DON'T want to be just plotting defectProfile since it's normalized to rail profile
     # should be plotting rail profile, coloured based on depths of defectprofile
@@ -112,7 +113,8 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
     
 
     if workingProfile.size != 0: # unga bunga moment
-        plotFP.append([plot3D(rmX, rmY, workingProfile, numx, numy, folder + wpType)])
+        plotFP.append([plot3D(rmX, rmY, defectCloseup, numdfx, numdfy, folder + wpType + '_initial')])
+        plotFP.append([plot3D(rmX, rmY, workingProfile, numdfx, numdfy, folder + wpType + '_final')])
 
 
     return maxDepth, defectLength, defectWidth, defectVolume, plotFP, repairSuccess # might not need all these returns
@@ -121,9 +123,10 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
 def getRemovalProfile(rProfile, dfProfile, dfBounds, X, Y):
     (rm, rM), (cm, cM) = dfBounds
     rmX, rmY = X[rm:rM, cm:cM], Y[rm:rM, cm:cM]
+    dprofile = rProfile[rm:rM, cm:cM]
     # figuring extra 12% removal should be enough
-    rmprofile = rProfile[rm:rM, cm:cM] - abs(dfProfile[rm:rM, cm:cM] * 1.12)
-    return rmprofile, rmX, rmY
+    rmprofile = dprofile - abs(dfProfile[rm:rM, cm:cM] * 1.12)
+    return rmprofile, dprofile, rmX, rmY
 
 
 def getDepositionProfile(rProfile, dfProfile, dfBounds):
@@ -205,7 +208,6 @@ def plot3D(X, Y, Z, rcount, ccount, fp=""):
     ax = plt.add_subplot(projection='3d')
     ax.plot_wireframe(X, Y, Z, rcount=rcount, ccount=ccount)    # might use something other than wireframe, idk
     ax.set_box_aspect((np.ptp(X), np.ptp(Y), np.ptp(Z)))    # normalizing axes
-    
     
     '''
     ideas for plot (if possible):
