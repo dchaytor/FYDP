@@ -1,11 +1,14 @@
-import InterpretData    # make sure this is the right way to do this
-import BogeyMovement    # class holding actual actions
-import time
+import InterpretData            # make sure this is the right way to do this
+import BogeyMovement as BM      # class holding actual actions
 import SystemReports
-
+import time
+import pygame
 
 def initialize():
     initPass = True
+    
+    BM.initializeControl()
+    BM.activateBrakes()
 
     # full system would use scanner to determine rail profile, scanner height
         # height would just be min returned value (possibly averaged over scan dist)
@@ -20,6 +23,7 @@ def initialize():
         # could put this in, but pointless without imu etc to verify mvmt works
 
     # move scanners until next side reached, move back
+    BM.scanSequence()
 
     # if any tests fail, set initPass = False, gen. err report 
 
@@ -43,7 +47,31 @@ def manualCtrl(h, profile, dx, dy):
         # when a button input is recognized, run appropriate movement command
         # make sure to put in an emergency stop button too
         # whenever a button input is recognized, set refTime = time.time()
-
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                shutdown = True
+            if event.type == pygame.JOYBUTTONDOWN:
+                refTime = time.time()
+                if pygame.joystick.Joystick(0).get_button(BM.setBrake):
+                    BM.activateBrakes()
+                elif pygame.joystick.Joystick(0).get_button(BM.resetBrake):
+                    BM.deactivateBrakes()
+                elif pygame.joystick.Joystick(0).get_button(BM.scanForward):
+                    BM.scanSequence()
+                elif pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonOne) and pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonTwo):
+                    shutdown = True
+            if event.type == pygame.JOYAXISMOTION:
+                refTime = time.time()
+                if pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickBackwardMin:
+                    BM.backwardDrive(BM.motorSpeed)
+                    pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
+                elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickForwardMin:
+                    BM.forwardDrive(BM.motorSpeed)
+                    pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
+                elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickBackwardMin and pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickForwardMin:
+                    BM.stopDrive()
+                elif pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonOne) > BM.leftTriggerMin and pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonTwo) > BM.rightTriggerMin:
+                    shutdown = True
 
 
         # on-event scan sequence
@@ -52,7 +80,7 @@ def manualCtrl(h, profile, dx, dy):
         # would save out plots in InterpretData, but send to reports here (using just filepath as str)
         params = []
         for seq in range(0, 3): # make sure this sends out the correct number of times
-            scanData = BogeyMovement.scanSequence()   # need to write this still lol
+            scanData = BM.scanSequence()   # need to write this still lol
             params.append(InterpretData.interpretData(scanData, dx, dy, h, seq))
         
         fp = SystemReports.repairReport(params)
@@ -75,6 +103,7 @@ def manualCtrl(h, profile, dx, dy):
     SystemReports.shutdownReport(nRep, nFail, startTime, endTime, dfFile)
 
     # figure out how to shut down system safely
+    BM.shutDown()
 
 
 def bogeyDisplay(state, message=""):
