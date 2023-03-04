@@ -12,7 +12,6 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
         scanData = np.array(scanData)
         
     #scanData = scanData.astype(float) # prob don't need this
-    
     # being lazy and just casting numeric variables - if run into trouble later, do something better
     dx = float(dx)
     dy = float(dy)
@@ -21,10 +20,6 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
 
     numy, numx = scanData.shape     # shape is gonna be as (cols, rows), so (y, x)
     
-    # testing plotting in various locations
-    #X, Y = np.meshgrid(np.arange(0, numx) * dx, np.arange(0, numy) * dy)
-    #plot3D(X, Y, scanData, numx, numy) # OK here
-
     # get defect-free rail profile w.r.t. sensor coordinate system
     # storing as 1D column vector for now (i.e., y coordinates only) - may change later
     idealRailProfile = None
@@ -40,24 +35,16 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
     # take scanData array, subtract off rail profile from each col, store into new matrix
     # represents defects as positive values for now
     defectProfile = idealRailProfile - scanData # assumes non-curved rail profile; would need mtx transform otherwise
-    
-    #print(np.around(scanData, 2))
-    #print(np.around(railProfile, 2))
-    #print(np.around(defectProfile, 2))
-    
-    
-    # set any values less than some small number to zero
-    defectProfile[abs(defectProfile) <= epsilon] = 0
+    defectProfile[abs(defectProfile) <= epsilon] = 0    # set any values less than some small number to zero
     defectIdx = np.nonzero(defectProfile)   # indices where defect is
     
-    '''
-    should really check to see if defectIdx is storing empty arrays first
-    can run into issues with next line if defectIdx stores ([], []); should
-    have a param that says there's no defect, and removes 
-    '''
-    dfBounds = ((defectIdx[0].min(), defectIdx[0].max() + 1), 
-        (defectIdx[1].min(), defectIdx[1].max() + 1))   # prob a better way but eh
     
+    dfBounds = ()
+    
+    if np.any(defectIdx):   # making sure there's a defect before running below eqn
+        dfBounds = ((defectIdx[0].min(), defectIdx[0].max() + 1), 
+            (defectIdx[1].min(), defectIdx[1].max() + 1))   # prob a better way but eh
+        
     maxDepth, defectLength, defectWidth, defectVolume = 0, 0, 0, 0
     if seq == 0:
         # only care about these params on 1st pass
@@ -82,42 +69,39 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
     X, Y = np.meshgrid(np.arange(0, numx) * dx, np.arange(0, numy) * dy)
     
     
-    '''
-    should check to see if defectIdx/dfBounds is empty before sending to
-    functions since otherwise will end up with issues
-    '''
-    if seq == 0:
-        workingProfile, defectCloseup, rmX, rmY = getRemovalProfile(scanData, defectProfile, dfBounds, X, Y)
-        generateToolpaths(scanData, workingProfile)    # would send this to machining module
-        dfpType = "defect-initial"
-        wpType = "machining-profile"
-    elif seq == 1:
-        workingProfile = getDepositionProfile(scanData, defectProfile, dfBounds)
-        generateToolpaths(scanData, workingProfile)    # would send this to mat'l deposition
-        dfpType = "post-machining"
-        wpType = "deposition-profile"
-    elif seq == 2:
-        workingProfile = getGrindoutProfile(scanData, defectProfile, dfBounds)
-        generateToolpaths(scanData, workingProfile)    # send to profile grinding module
-        dfpType = "post-deposition"
-        wpType = "grinding-profile"
-    else:
+    if dfBounds:        # should return true if defect is non-empty
+        if seq == 0:
+            workingProfile, defectCloseup, wpX, wpY = getRemovalProfile(scanData, defectProfile, dfBounds, X, Y)
+            generateToolpaths(scanData, workingProfile)    # would send this to machining module
+            dfpType = "defect-initial"
+            wpType = "machining-profile"
+        elif seq == 1:
+            workingProfile, defectCloseup, wpX, wpY = getDepositionProfile(scanData, idealRailProfile, dfBounds, X, Y)
+            generateToolpaths(scanData, workingProfile)    # would send this to mat'l deposition
+            dfpType = "post-machining"
+            wpType = "deposition-profile"
+        elif seq == 2:
+            workingProfile, defectCloseup, wpX, wpY = getGrindoutProfile(scanData, idealRailProfile, dfBounds, X, Y)
+            generateToolpaths(scanData, workingProfile)    # send to profile grinding module
+            dfpType = "post-deposition"
+            wpType = "grinding-profile"
+    else:   # if defect is empty, profile matches rest of rail
         repairSuccess = profileMatch(defectProfile)
         dfpType = "finished-profile"
 
-    numdfy, numdfx = workingProfile.shape
 
     # DON'T want to be just plotting defectProfile since it's normalized to rail profile
     # should be plotting rail profile, coloured based on depths of defectprofile
     plotFP = [plot3D(X, Y, scanData, numx, numy, folder + dfpType)] 
     
-
     if workingProfile.size != 0: # unga bunga moment
-        plotFP.append([plot3D(rmX, rmY, defectCloseup, numdfx, numdfy, folder + wpType + '_initial')])
-        plotFP.append([plot3D(rmX, rmY, workingProfile, numdfx, numdfy, folder + wpType + '_final')])
+        numdfy, numdfx = workingProfile.shape
+        plotFP.append([plot3D(wpX, wpY, defectCloseup, numdfx, numdfy, folder + wpType + '_initial')])
+        plotFP.append([plot3D(wpX, wpY, workingProfile, numdfx, numdfy, folder + wpType + '_final')])
 
 
-    return maxDepth, defectLength, defectWidth, defectVolume, plotFP, repairSuccess # might not need all these returns
+    #return workingProfile, dfBounds    # returning different params for testing
+    return maxDepth, defectLength, defectWidth, defectVolume, plotFP, repairSuccess # might not need all these returns but eh
 
 
 def getRemovalProfile(rProfile, dfProfile, dfBounds, X, Y):
@@ -129,14 +113,38 @@ def getRemovalProfile(rProfile, dfProfile, dfBounds, X, Y):
     return rmprofile, dprofile, rmX, rmY
 
 
-def getDepositionProfile(rProfile, dfProfile, dfBounds):
-    # would need to figure out how to determine required mat'l deposition profile
-    return None
+def getDepositionProfile(rProfile, target_profile, dfBounds, X, Y):
+    # need to figure out how to determine required mat'l deposition profile:
+    # -> something similar to but slightly larger than final rail profile
+    # -> want bounds to extend slightly past dfBounds in all directions (s.t. making sure df covered up)
+    (rm, rM), (cm, cM) = dfBounds
+
+    eidx = 3    # extra indices +- dfBounds to weld onto
+    rm -= eidx
+    rM += eidx
+    cm -= eidx
+    cM += eidx
+
+    dfprofile = rProfile[rm:rM, cm:cM]  # saving out a bit more than needed but eh who cares
+
+    dpX, dpY = X[rm:rM, cm:cM], Y[rm:rM, cm:cM]
+
+    extraTol = .2    # 2mm extra profile from top everywhere (somewhat arbitrary, lacking more well informed solution)
+
+    dpProfile = (np.multiply(np.ones((rM - rm, cM - cm)), target_profile[rm:rM])) + extraTol    # for ideal + 2mm
+    #dpProfile = np.ones((rM - rm, cM - cm)) * target_profile[rm:rM].max() + extraTol    # for same value everywhere
+
+    return dpProfile, dfprofile, dpX, dpY
 
 
-def getGrindoutProfile(rProfile, dfProfile, dfBounds):
-    # would need to figure out how to determine final grindout profile
-    return None
+def getGrindoutProfile(rProfile, target_profile, dfBounds, X, Y):
+    # final grindout profile is just going to be defect-free rail profile...
+    (rm, rM), (cm, cM) = dfBounds
+    dfprofile = rProfile[rm:rM, cm:cM]
+
+    goX, goY = X[rm:rM, cm:cM], Y[rm:rM, cm:cM]
+    goprofile = (np.multiply(np.ones((rM - rm, cM - cm)), target_profile[rm:rM]))  # make sure shape matches goX, goY
+    return goprofile, dfprofile, goX, goY
 
 
 def generateToolpaths(initProf, finalProf, tool=""):
@@ -217,7 +225,7 @@ def plot3D(X, Y, Z, rcount, ccount, fp=""):
     - make sure to save out interactive plot if possible (so can resize/pan etc)
     -> prob just leave these for now, and do them after MDR
     
-    - open to ideas RE: meaningful visualization
+    - should trim plots
     '''
 
     if not fp == "" and False:
@@ -259,21 +267,6 @@ if __name__ == "__main__" or __name__ == "InterpretData.Py":
     #print(X.shape, Y.shape, sliceData.shape, scanData.shape)
 
     #plot3D(X, Y, scanData, numy, numx) 
-
-    '''
-    test = np.array(((0, 0, 0, 0), (0, 2, 0, 0), (0,3,0,0), (0, 0, 0, 0)))
-    print(test)
-    testIdx = np.nonzero(test)
-    testBounds = ((testIdx[0].min(), testIdx[0].max() + 1), (testIdx[1].min(), testIdx[1].max() + 1))
-    (a, b), (c, d) = testBounds
-    #print(test[testBounds[0], testBounds[1]])
-    #print(test[(1,2) * (1, 2)])
-    #print(test[testBounds[0][0]:testBounds[0][1], testBounds[1][0]:testBounds[1][1]])
-    #print(test[a:b, c:d])
-    '''
-    
-    # vscode being kinda funky... might have to switch IDEs for now
-    # might have to uninstall/reinstall vscode tbh
 
     # adding functionally generated defect to scanData
     yc, xc = [int(n/2) for n in perfectRail.shape] # generating about center of defect
@@ -319,12 +312,36 @@ if __name__ == "__main__" or __name__ == "InterpretData.Py":
     '''
     
     # testing module:
-    ret = interpretData(scanData, dx, dy, sensorHeight, seq=0)
+    #ret = interpretData(scanData, dx, dy, sensorHeight, seq=0)
 
-    print(f"Max Depth: {ret[0]}")
-    print(f"Defect Length: {ret[1]}")
-    print(f"Defect Width: {ret[2]}")
-    print(f"Defect Volume: {ret[3]}")
+    #print(f"Max Depth: {ret[0]}")
+    #print(f"Defect Length: {ret[1]}")
+    #print(f"Defect Width: {ret[2]}")
+    #print(f"Defect Volume: {ret[3]}")
+
+    # testing all sequences (NOTE: changed return for function for this test to pass back working profile, wp indices)
+    # initial scan (seq=0) - milling wp
+    wp, dfBounds = interpretData(scanData, dx, dy, sensorHeight, seq=0)
+    (rm, rM), (cm, cM) = dfBounds   # unpacking tuple of bounds
+    scanData[rm:rM, cm:cM] = wp # updating profile based on new working profile
+
+    # post-milling scan (seq=1) - deposition wp; need to +/- 3 from dfBounds since bounds are for og defect (wp is larger)
+    wp, dfBounds = interpretData(scanData, dx, dy, sensorHeight, seq=1)
+    (rm, rM), (cm, cM) = dfBounds   # unpacking tuple of bounds
+    rm -= 3
+    rM += 3
+    cm -= 3
+    cM += 3
+    scanData[rm:rM, cm:cM] = wp # updating profile
+
+    # post-deposition scan (seq=2) - grindout wp
+    wp, dfBounds = interpretData(scanData, dx, dy, sensorHeight, seq=2)
+    (rm, rM), (cm, cM) = dfBounds   # unpacking tuple of bounds
+    scanData[rm:rM, cm:cM] = wp # updating profile based on new working profile
+
+    # post-grinding scan (seq=3) - should just be finished profile
+    interpretData(scanData, dx, dy, sensorHeight, seq=3)
+    
     
     
 
