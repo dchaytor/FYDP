@@ -9,14 +9,14 @@ import time
 # Controller Buttons - DS4 setup
 bogieDrive = 1                  # Bogie drive forward/backward - Left Stick
 setBrake = 2                    # Bogie brakes activated - Square
-resetBrake = 0                  # Bogie brakes deactivated - X
-scanForward = 11                # Bogie scanner move forward - D-pad Up
-scanBackward = 12               # Bogie scanner move backward - D-pad Down
-scanStop = 13                   # Bogie scanner stop - D-pad Left
-eStopOneButtonOne = 4           # Bogie shutdown - Left Trigger
-eStopOneButtonTwo = 5           # Bogie shutdown - Right Trigger
-eStopTwoButtonOne = 7           # Bogie shutdown - Left Stick
-eStopTwoButtonTwo = 8           # Bogie shutdown - Right Stick
+resetBrake = 1                  # Bogie brakes deactivated - Circle
+scanForward = 3                 # Bogie scanner move forward - Triangle
+scanBackward = 0                # Bogie scanner move backward - X
+scanStop = 13                   # Bogie scanner stop - Click Touch Pad
+eStopOneButtonOne = 4           # Bogie shutdown - L2
+eStopOneButtonTwo = 5           # Bogie shutdown - R2
+eStopTwoButtonOne = 10          # Bogie shutdown - Left Stick
+eStopTwoButtonTwo = 11          # Bogie shutdown - Right Stick
 
 # Control Params
 leftStickForwardMin = -0.95     # Min axis value on left stick to move forward
@@ -47,6 +47,7 @@ def initializeControl():
     pygame.init()       # initialize pygame
     joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
     print(joysticks)
+    pygame.joystick.Joystick(0).init()
 
     # Raspberry Pi setup
     GPIO.cleanup() # clear GPIOs
@@ -69,6 +70,7 @@ def backwardDrive(driveSpeed):
 
 def stopDrive():
     driveMotor.stop()
+    print("Stopping Drive")
 
 def activateBrakes():
     if servoMotor.value != maxServoAngle:    
@@ -81,13 +83,19 @@ def deactivateBrakes():
         print("Deactivating Brake")
 
 def forwardScan(scanSpeed):
+    pygame.event.set_blocked(pygame.JOYAXISMOTION)
     scanMotor.forward(scanSpeed)
+    print("Scanning Forward")
 
 def backwardScan(scanSpeed):
+    pygame.event.set_blocked(pygame.JOYAXISMOTION)
     scanMotor.backward(scanSpeed)
+    print("Scanning Backward")
 
 def stopScan():
+    pygame.event.set_allowed(pygame.JOYAXISMOTION)
     scanMotor.stop()
+    print("Stopping Scan")
 
 # def moveScannerBack():
 #     # Start moving scanner backward

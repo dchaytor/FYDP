@@ -51,35 +51,42 @@ def manualCtrl(h, profile, dx, dy):
             if event.type == pygame.QUIT:
                 shutdown = True
             if event.type == pygame.JOYBUTTONDOWN:
+                # SQUARE
                 if pygame.joystick.Joystick(0).get_button(BM.setBrake):
                     BM.activateBrakes()
+                # CIRCLE
                 elif pygame.joystick.Joystick(0).get_button(BM.resetBrake):
                     BM.deactivateBrakes()
+                # TRIANGLE
                 elif pygame.joystick.Joystick(0).get_button(BM.scanForward):
                     BM.forwardScan(BM.scanMotorSpeed)
+                # X
                 elif pygame.joystick.Joystick(0).get_button(BM.scanBackward):
                     BM.backwardScan(BM.scanMotorSpeed)
+                # CLICK TOUCH PAD
                 elif pygame.joystick.Joystick(0).get_button(BM.scanStop):
                     BM.stopScan()
+                # PRESS LEFT STICK AND RIGHT STICK
                 elif pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonOne) and pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonTwo):
                     shutdown = True
                 refTime = time.time()
                 print(refTime)
                 print(event)
             if event.type == pygame.JOYAXISMOTION:
+                # LEFT STICK BACKWARD
                 if pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickBackwardMin:
+                    pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
                     BM.backwardDrive(BM.driveMotorSpeed)
-                    pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
+                # LEFT STICK FORWARD
                 elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickForwardMin:
-                    BM.forwardDrive(BM.driveMotorSpeed)
                     pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
+                    BM.forwardDrive(BM.driveMotorSpeed)
+                # LEFT STICK CENTER
                 elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickBackwardMin and pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickForwardMin:
                     BM.stopDrive()
+                # PRESS L2 and R2
                 elif pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonOne) > BM.leftTriggerMin and pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonTwo) > BM.rightTriggerMin:
                     shutdown = True
-                refTime = time.time()
-                print(refTime)
-                print(event)
 
         # on-event scan sequence
         # probably just return everything from InterpretData then send to reports as required
@@ -124,6 +131,7 @@ if __name__ == "__main__" or __name__ == "BogeyControl.py":
     [h, profile, initPass, dx, dy] = initialize()
 
     if initPass:
+        print("Initialized")
         manualCtrl(h, profile, dx, dy)
     else:
         # would print message to bogey display console (once figured out)
