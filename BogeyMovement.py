@@ -10,10 +10,10 @@ import time
 bogieForward = 7                # Bogie drive forward - R2
 bogieBackward = 6               # Bogie drive backward - L2
 bogieStop = 4                   # Bogie drive stop - L1
-setBrake = 2                    # Bogie brakes activated - Square
-resetBrake = 1                  # Bogie brakes deactivated - Circle
+setBrake = 0                    # Bogie brakes activated - Square
+resetBrake = 2                  # Bogie brakes deactivated - Circle
 scanForward = 3                 # Bogie scanner move forward - Triangle
-scanBackward = 0                # Bogie scanner move backward - X
+scanBackward = 1                # Bogie scanner move backward - X
 scanStop = 13                   # Bogie scanner stop - Click Touch Pad
 eStopButtonOne = 10             # Bogie shutdown - Left Stick
 eStopButtonTwo = 11             # Bogie shutdown - Right Stick
@@ -29,9 +29,9 @@ maxServoAngle = 1               # Set servo to max angle: ((max/270)*2 - 1)
 minServoAngle = -1              # Set servo to min angle: ((min/270)*2 - 1)
 
 # Set pins
-driveForwardPin = 16        # GPIO pin set to drive bogie forward
+driveForwardPin = 21        # GPIO pin set to drive bogie forward
 driveBackwardPin = 20       # GPIO pin set to drive bogie backward
-driveStopPin = 21           # GPIO pin set to enable motor controller
+driveStopPin = 16           # GPIO pin set to stop bogie drive
 scanBackwardPin = 4         # GPIO pin set to move scanner backward
 scanForwardPin = 17         # GPIO pin set to move scanner forward
 scanEnablePin = 27          # GPIO pin set to enable motor controller
@@ -53,6 +53,11 @@ def initializeControl():
     GPIO.cleanup() # clear GPIOs
     GPIO.setmode(GPIO.BCM) # setup GPIO call mode for raspberry pi
 
+    # Setup pins for bogie drive
+    GPIO.setup(driveForwardPin, GPIO.OUT)
+    GPIO.setup(driveBackwardPin, GPIO.OUT)
+    GPIO.setup(driveStopPin, GPIO.OUT)
+
     # driveMotor = Motor(driveForwardPin, driveBackwardPin)
     scanMotor = Motor(scanForwardPin, scanBackwardPin, scanEnablePin)
     servoMotor = Servo(brakeServoPin)
@@ -60,16 +65,25 @@ def initializeControl():
     # rearButton = Button(rearButtonStopPin)
     # Encoder not set up - not using
 
-def forwardDrive(driveSpeed):
+def forwardDrive():
     # driveMotor.forward(driveSpeed)
+    GPIO.output(driveForwardPin, GPIO.HIGH)
+    GPIO.output(driveBackwardPin, GPIO.LOW)
+    GPIO.output(driveStopPin, GPIO.LOW)    
     print("Moving Forward")
 
-def backwardDrive(driveSpeed):
+def backwardDrive():
     # driveMotor.backward(driveSpeed)
+    GPIO.output(driveForwardPin, GPIO.LOW)
+    GPIO.output(driveBackwardPin, GPIO.HIGH)
+    GPIO.output(driveStopPin, GPIO.LOW)
     print("Moving Backward")
 
 def stopDrive():
     # driveMotor.stop()
+    GPIO.output(driveForwardPin, GPIO.LOW)
+    GPIO.output(driveBackwardPin, GPIO.LOW)
+    GPIO.output(driveStopPin, GPIO.HIGH)
     print("Stopping Drive")
 
 def activateBrakes():
@@ -162,6 +176,13 @@ def stopScan():
 #     return scanData
 
 def shutDown():
+    GPIO.output(driveForwardPin, GPIO.LOW)
+    GPIO.output(driveBackwardPin, GPIO.LOW)
+    GPIO.output(driveStopPin, GPIO.HIGH)
+    time.sleep(2)
+    GPIO.output(driveForwardPin, GPIO.LOW)
+    GPIO.output(driveBackwardPin, GPIO.LOW)
+    GPIO.output(driveStopPin, GPIO.LOW)
     pygame.quit()
     GPIO.cleanup()
 
