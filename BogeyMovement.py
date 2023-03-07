@@ -7,31 +7,31 @@ import time
 
 
 # Controller Buttons - DS4 setup
-bogieDrive = 1                  # Bogie drive forward/backward - Left Stick
+bogieForward = 7                # Bogie drive forward - R2
+bogieBackward = 6               # Bogie drive backward - L2
+bogieStop = 4                   # Bogie drive stop - L1
 setBrake = 2                    # Bogie brakes activated - Square
 resetBrake = 1                  # Bogie brakes deactivated - Circle
 scanForward = 3                 # Bogie scanner move forward - Triangle
 scanBackward = 0                # Bogie scanner move backward - X
 scanStop = 13                   # Bogie scanner stop - Click Touch Pad
-eStopOneButtonOne = 4           # Bogie shutdown - L2
-eStopOneButtonTwo = 5           # Bogie shutdown - R2
-eStopTwoButtonOne = 10          # Bogie shutdown - Left Stick
-eStopTwoButtonTwo = 11          # Bogie shutdown - Right Stick
+eStopButtonOne = 10             # Bogie shutdown - Left Stick
+eStopButtonTwo = 11             # Bogie shutdown - Right Stick
 
 # Control Params
-leftStickForwardMin = -0.95     # Min axis value on left stick to move forward
-leftStickBackwardMin = 0.95     # Min axis value on left stick to move backward
-leftTriggerMin = 0.5            # Min axis value to e-stop
-rightTriggerMin = 0.5           # Min axis value to e-stop
-driveMotorSpeed = 0.5
+# leftStickForwardMin = -0.95     # Min axis value on left stick to move forward
+# leftStickBackwardMin = 0.95     # Min axis value on left stick to move backward
+# leftTriggerMin = 0.5            # Min axis value to e-stop
+# rightTriggerMin = 0.5           # Min axis value to e-stop
+# driveMotorSpeed = 0.5
 scanMotorSpeed = 0.5
 maxServoAngle = 1               # Set servo to max angle: ((max/270)*2 - 1)
 minServoAngle = -1              # Set servo to min angle: ((min/270)*2 - 1)
 
 # Set pins
-driveForwardPin = 23        # GPIO pin set to drive bogie forward
-driveBackwardPin = 24       # GPIO pin set to drive bogie backward
-# driveEnablePin =          # GPIO pin set to enable motor controller
+driveForwardPin = 16        # GPIO pin set to drive bogie forward
+driveBackwardPin = 20       # GPIO pin set to drive bogie backward
+driveStopPin = 21           # GPIO pin set to enable motor controller
 scanBackwardPin = 4         # GPIO pin set to move scanner backward
 scanForwardPin = 17         # GPIO pin set to move scanner forward
 scanEnablePin = 27          # GPIO pin set to enable motor controller
@@ -41,7 +41,7 @@ brakeServoPin = 18          # GPIO pin set for brakes
 
 
 def initializeControl():
-    global driveMotor, scanMotor, servoMotor
+    global scanMotor, servoMotor
 
     # Initialize
     pygame.init()       # initialize pygame
@@ -53,7 +53,7 @@ def initializeControl():
     GPIO.cleanup() # clear GPIOs
     GPIO.setmode(GPIO.BCM) # setup GPIO call mode for raspberry pi
 
-    driveMotor = Motor(driveForwardPin, driveBackwardPin)
+    # driveMotor = Motor(driveForwardPin, driveBackwardPin)
     scanMotor = Motor(scanForwardPin, scanBackwardPin, scanEnablePin)
     servoMotor = Servo(brakeServoPin)
     # frontButton = Button(forwardButtonStopPin)
@@ -61,15 +61,15 @@ def initializeControl():
     # Encoder not set up - not using
 
 def forwardDrive(driveSpeed):
-    driveMotor.forward(driveSpeed)
+    # driveMotor.forward(driveSpeed)
     print("Moving Forward")
 
 def backwardDrive(driveSpeed):
-    driveMotor.backward(driveSpeed)
+    # driveMotor.backward(driveSpeed)
     print("Moving Backward")
 
 def stopDrive():
-    driveMotor.stop()
+    # driveMotor.stop()
     print("Stopping Drive")
 
 def activateBrakes():

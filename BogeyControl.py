@@ -66,27 +66,36 @@ def manualCtrl(h, profile, dx, dy):
                 # CLICK TOUCH PAD
                 elif pygame.joystick.Joystick(0).get_button(BM.scanStop):
                     BM.stopScan()
+                # R2
+                elif pygame.joystick.Joystick(0).get_button(BM.bogieForward):
+                    BM.forwardDrive()
+                # L2
+                elif pygame.joystick.Joystick(0).get_button(BM.bogieBackward):
+                    BM.backwardDrive()
+                # L1
+                elif pygame.joystick.Joystick(0).get_button(BM.bogieStop):
+                    BM.stopDrive()
                 # PRESS LEFT STICK AND RIGHT STICK
-                elif pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonOne) and pygame.joystick.Joystick(0).get_button(BM.eStopTwoButtonTwo):
+                elif pygame.joystick.Joystick(0).get_button(BM.eStopButtonOne) and pygame.joystick.Joystick(0).get_button(BM.eStopButtonTwo):
                     shutdown = True
                 refTime = time.time()
                 print(refTime)
                 print(event)
-            if event.type == pygame.JOYAXISMOTION:
-                # LEFT STICK BACKWARD
-                if pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickBackwardMin:
-                    pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
-                    BM.backwardDrive(BM.driveMotorSpeed)
-                # LEFT STICK FORWARD
-                elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickForwardMin:
-                    pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
-                    BM.forwardDrive(BM.driveMotorSpeed)
-                # LEFT STICK CENTER
-                elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickBackwardMin and pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickForwardMin:
-                    BM.stopDrive()
-                # PRESS L2 and R2
-                elif pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonOne) > BM.leftTriggerMin and pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonTwo) > BM.rightTriggerMin:
-                    shutdown = True
+            # if event.type == pygame.JOYAXISMOTION:
+            #     # LEFT STICK BACKWARD
+            #     if pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickBackwardMin:
+            #         pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
+            #         BM.backwardDrive(BM.driveMotorSpeed)
+            #     # LEFT STICK FORWARD
+            #     elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickForwardMin:
+            #         pygame.event.set_blocked(pygame.JOYBUTTONDOWN)
+            #         BM.forwardDrive(BM.driveMotorSpeed)
+            #     # LEFT STICK CENTER
+            #     elif pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) < BM.leftStickBackwardMin and pygame.joystick.Joystick(0).get_axis(BM.bogieDrive) > BM.leftStickForwardMin:
+            #         BM.stopDrive()
+            #     # PRESS L2 and R2
+            #     elif pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonOne) > BM.leftTriggerMin and pygame.joystick.Joystick(0).get_axis(BM.eStopOneButtonTwo) > BM.rightTriggerMin:
+            #         shutdown = True
 
         # on-event scan sequence
         # probably just return everything from InterpretData then send to reports as required
