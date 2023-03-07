@@ -2,6 +2,8 @@
 # general assumptions moved to bottom of module
 import numpy as np
 import matplotlib.pyplot as mplot
+from matplotlib import cm as colmap
+from matplotlib.colors import CenteredNorm
 
 def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railScan=None, scanSide="left", folder='C:/Users/dunca/OneDrive/Documents/4B/FYDP/FYDP'):
     #scanData = sensorHeight - scanData # if actually scanning in data, need to do this to put w.r.t. scanner ref frame
@@ -16,7 +18,7 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
     dx = float(dx)
     dy = float(dy)
     sensorHeight = float(sensorHeight)
-    epsilon = 0.0001    # acceptable error w/ comparing scanned profile to rail profile
+    epsilon = 1e-4    # acceptable error w/ comparing scanned profile to rail profile
 
     numy, numx = scanData.shape     # shape is gonna be as (cols, rows), so (y, x)
     
@@ -46,6 +48,7 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
             (defectIdx[1].min(), defectIdx[1].max() + 1))   # prob a better way but eh
         
     maxDepth, defectLength, defectWidth, defectVolume = 0, 0, 0, 0
+
     if seq == 0:
         # only care about these params on 1st pass
         maxDepth = defectProfile.max()
@@ -64,11 +67,12 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
     workingProfile = np.array([])
     repairSuccess = False
     dfpType = wpType = ""
+    plotFP = ""
     
     # creating grid based on number of indices in x and y and distance per step
     X, Y = np.meshgrid(np.arange(0, numx) * dx, np.arange(0, numy) * dy)
     
-    
+    # generating working profiles, determining norm for colourplot
     if dfBounds:        # should return true if defect is non-empty
         if seq == 0:
             workingProfile, defectCloseup, wpX, wpY = getRemovalProfile(scanData, defectProfile, dfBounds, X, Y)
@@ -85,23 +89,34 @@ def interpretData(scanData, dx, dy, sensorHeight, seq, railType="default", railS
             generateToolpaths(scanData, workingProfile)    # send to profile grinding module
             dfpType = "post-deposition"
             wpType = "grinding-profile"
+
+        #norm = mplot.Normalize(defectProfile.min(), defectProfile.max())
+        norm = CenteredNorm(halfrange = max(abs(defectProfile.min()), abs(defectProfile.max())))
+   
     else:   # if defect is empty, profile matches rest of rail
         repairSuccess = profileMatch(defectProfile)
         dfpType = "finished-profile"
+        norm = CenteredNorm(halfrange=epsilon)  # showing that all w/in tolerance by end
+  
 
+    # plotting rail:
+    cmap = colmap.viridis  # decent looking ones: winter, twilight, viridis
+    colours = cmap(norm(defectProfile))
+    plotFP = [plot3D_colourgrad(X, Y, scanData, colours, norm, cmap, numx, numy, folder + dfpType)]
 
     # DON'T want to be just plotting defectProfile since it's normalized to rail profile
     # should be plotting rail profile, coloured based on depths of defectprofile
-    plotFP = [plot3D(X, Y, scanData, numx, numy, folder + dfpType)] 
+    #plotFP = [plot3D(X, Y, scanData, numx, numy, folder + dfpType)] 
     
+    # plotting closeup of defect, working profile
     if workingProfile.size != 0: # unga bunga moment
         numdfy, numdfx = workingProfile.shape
         plotFP.append([plot3D(wpX, wpY, defectCloseup, numdfx, numdfy, folder + wpType + '_initial')])
         plotFP.append([plot3D(wpX, wpY, workingProfile, numdfx, numdfy, folder + wpType + '_final')])
 
 
-    #return workingProfile, dfBounds    # returning different params for testing
-    return maxDepth, defectLength, defectWidth, defectVolume, plotFP, repairSuccess # might not need all these returns but eh
+    return workingProfile, dfBounds    # returning different params for testing
+    #return maxDepth, defectLength, defectWidth, defectVolume, plotFP, repairSuccess # might not need all these returns but eh
 
 
 def getRemovalProfile(rProfile, dfProfile, dfBounds, X, Y):
@@ -216,18 +231,9 @@ def plot3D(X, Y, Z, rcount, ccount, fp=""):
     ax = plt.add_subplot(projection='3d')
     ax.plot_wireframe(X, Y, Z, rcount=rcount, ccount=ccount)    # might use something other than wireframe, idk
     ax.set_box_aspect((np.ptp(X), np.ptp(Y), np.ptp(Z)))    # normalizing axes
-    
-    '''
-    ideas for plot (if possible):
-    - hide x/y/z gridlines, put a scale line in instead
-    - colour based on defect profile (i.e., further deviation from standard profile gives colour gradient)
-        -> look into different mplot functions, surf commands, idk
-    - make sure to save out interactive plot if possible (so can resize/pan etc)
-    -> prob just leave these for now, and do them after MDR
-    
-    - should trim plots
-    '''
 
+    # make sure to go back at some point and switch code to use savefig instead
+    # also, try to get image to crop when using savefig
     if not fp == "" and False:
         # get rid of "and False" when actually testing system
         plt.savefig(fp)
@@ -236,6 +242,29 @@ def plot3D(X, Y, Z, rcount, ccount, fp=""):
         mplot.show()
 
     return fp
+
+def plot3D_colourgrad(X, Y, Z, colours, norm, cmap, rcount, ccount, fp=''):
+    
+    plt = mplot.figure()
+    ax = plt.add_subplot(projection='3d')
+    surf = ax.plot_surface(X, Y, Z, rcount=rcount, ccount=ccount, facecolors=colours, shade=False)
+    surf.set_facecolor((0, 0, 0, 0))
+    ax.set_box_aspect((np.ptp(X), np.ptp(Y), np.ptp(Z)))    # normalizing axes
+    plt.colorbar(colmap.ScalarMappable(norm=norm, cmap=cmap), shrink=0.5, aspect=10)
+
+    # hiding gridlines, axes ticks
+    #mplot.axis('off')  # nevermind, this looks like shit
+
+    # adding scale bar # can't find a way to do this that wouldn't be a massive PITA
+    #scalebar = AnchoredSizeBar(ax.transData, 0.1, '1mm', 'lower center')
+    #ax.add_artist(scalebar)
+
+    # make sure to go back at some point and switch code to use savefig instead
+    # also, try to get image to crop when using savefig
+    mplot.show()
+
+    return fp
+
 
 
 if __name__ == "__main__" or __name__ == "InterpretData.Py":
